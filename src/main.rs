@@ -1,3 +1,6 @@
-fn main() {
-    println!("Hello, world!");
+use rocket;
+
+#[rocket::main]
+async fn main() {
+    let _ = rocket::build().launch().await;
 }
