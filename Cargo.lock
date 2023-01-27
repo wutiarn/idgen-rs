@@ -573,6 +573,7 @@ name = "idgen-rs"
 version = "0.1.0"
 dependencies = [
  "env_logger",
+ "log",
  "rocket",
  "thiserror",
 ]
