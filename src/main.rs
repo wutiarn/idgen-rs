@@ -5,7 +5,7 @@ use rocket;
 #[rocket::main]
 async fn main() {
     env_logger::builder()
-        .filter_level(LevelFilter::Info)
+        .filter_level(LevelFilter::Debug)
         .target(Target::Stdout)
         .init();
     info!("Starting idgen-rs");
