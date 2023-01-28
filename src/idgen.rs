@@ -1,23 +1,34 @@
 use std::fmt::format;
 use std::sync::Mutex;
 use std::time::{Instant, SystemTime};
-use arr_macro::arr;
 use log::info;
-use once_cell::sync::Lazy;
 
-const TIMESTAMP_BITS: usize = 35;
-const COUNTER_BITS: usize = 14;
-const INSTANCE_ID_BITS: usize = 6;
-const DOMAIN_BITS: usize = 8;
+struct IdGeneratorConfig {
+    timestamp_bits: u8,
+    counter_bits: u8,
+    instance_id_bits: u8,
+    domain_id_bits: u8,
+    epoch_start: Instant,
+    reserved_seconds_count: u32,
+}
 
-const DOMAINS_COUNT: usize = usize::pow(2, DOMAIN_BITS as u32);
+impl IdGeneratorConfig {
+    pub fn validate(&self) {
+        let bits_count: u32 = 0u32
+            + self.timestamp_bits as u32
+            + self.counter_bits as u32
+            + self.instance_id_bits as u32
+            + self.domain_id_bits as u32;
+        assert!(bits_count <= 63, "bits sum must be less or equal to 63")
+    }
 
-static EPOCH_START: Lazy<Instant> = Lazy::new(|| Instant::now());
-const RESERVED_SECONDS_COUNT: usize = 10;
-
+    pub fn get_domains_count(&self) -> u8 {
+        return 2u8.pow(self.domain_id_bits as u32);
+    }
+}
 
 struct IdGenerator {
-    domain_state_holders: [Mutex<DomainStateHolder>; DOMAINS_COUNT],
+    domain_state_holders: Vec<Mutex<DomainStateHolder>>,
 }
 
 struct DomainStateHolder {
@@ -25,6 +36,7 @@ struct DomainStateHolder {
     timestamp: u64,
     counter: u64,
 }
+
 
 impl IdGenerator {
     pub fn generate_id(&self) {
@@ -35,9 +47,11 @@ impl IdGenerator {
         state.generate_ids()
     }
 
-    pub fn create() -> IdGenerator {
-        let mut i = 0u8;
-        let holders: [Mutex<DomainStateHolder>; DOMAINS_COUNT] = arr![DomainStateHolder::new({i}); 256];
+    pub fn create(config: &IdGeneratorConfig) -> IdGenerator {
+        let mut holders = Vec::new();
+        for i in 0..config.get_domains_count() {
+            holders.push(DomainStateHolder::new(i))
+        }
         return IdGenerator {
             domain_state_holders: holders,
         };
@@ -58,11 +72,11 @@ impl DomainStateHolder {
     }
 }
 
-fn get_current_timestamp() {
-
-}
+fn get_current_timestamp() {}
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+
 }
