@@ -1,25 +1,34 @@
+use confique::Config;
+
+#[derive(Config)]
 pub struct AppConfig {
-    pub idgen: IdGenConfig
+    #[config(nested)]
+    pub idgen: IdGenConfig,
 }
 
+#[derive(Config)]
 pub struct IdGenConfig {
-    instance_id: u64,
-    timestamp_bits: u8,
-    counter_bits: u8,
-    instance_id_bits: u8,
-    domain_id_bits: u8,
-    epoch_start_second: u64,
-    reserved_seconds_count: u64,
+    #[config(env = "INSTANCE_ID")]
+    pub instance_id: u64,
+    #[config(default = 35)]
+    pub timestamp_bits: u8,
+    #[config(default = 14)]
+    pub counter_bits: u8,
+    #[config(default = 6)]
+    pub instance_id_bits: u8,
+    #[config(default = 8)]
+    pub domain_id_bits: u8,
+    #[config(default = 1672531200)]
+    pub epoch_start_second: u64,
+    #[config(default = 10)]
+    pub reserved_seconds_count: u64,
 }
 
 impl AppConfig {
-    pub fn new() -> Result<Self, config::ConfigError> {
-        let c = config::Config::builder()
-            .add_source(config::File::with_name("app_config").required(false))
-            .add_source(config::File::with_name("app_config_local").required(false))
-            .add_source(config::Environment::with_prefix("APP"))
-            .set_default()
-            .build()?;
-        c.try_deserialize()
+    pub fn new() -> Result<Self, confique::Error> {
+        AppConfig::builder()
+            .env()
+            .file("config.yaml")
+            .load()
     }
 }
