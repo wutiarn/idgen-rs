@@ -172,12 +172,12 @@ impl IdParams {
         return result;
     }
 
-    fn parse(encoded: u64, config: &IdGeneratorExtendedConfig) -> IdParams {
+    fn decode(encoded: u64, config: &IdGeneratorExtendedConfig) -> IdParams {
         let mut src = encoded;
-        let (domain, src) = IdParams::parse_part(src, config.max_domain, config.domain_id_bits);
-        let (instance_id, src) = IdParams::parse_part(src, config.max_instance_id, config.instance_id_bits);
-        let (counter, src) = IdParams::parse_part(src, config.max_counter_value, config.counter_bits);
-        let (timestamp, src) = IdParams::parse_part(src, config.max_timestamp, config.timestamp_bits);
+        let (domain, src) = IdParams::decode_part(src, config.max_domain, config.domain_id_bits);
+        let (instance_id, src) = IdParams::decode_part(src, config.max_instance_id, config.instance_id_bits);
+        let (counter, src) = IdParams::decode_part(src, config.max_counter_value, config.counter_bits);
+        let (timestamp, src) = IdParams::decode_part(src, config.max_timestamp, config.timestamp_bits);
         IdParams {
             timestamp,
             counter,
@@ -192,7 +192,7 @@ impl IdParams {
         return target << bits | masked;
     }
 
-    fn parse_part(src: u64, mask: u64, bits: u8) -> (u64, u64) {
+    fn decode_part(src: u64, mask: u64, bits: u8) -> (u64, u64) {
         let value = src & mask;
         let remainder = src >> bits;
         return (value, remainder);
@@ -255,7 +255,7 @@ mod tests {
         let encoded = params.encode(&config);
         assert_eq!(encoded, 391531634640137, "should generate expected id");
 
-        let decoded = IdParams::parse(encoded, &config);
+        let decoded = IdParams::decode(encoded, &config);
         assert_eq!(params, decoded, "decoded should be equals to initial params")
     }
 }
