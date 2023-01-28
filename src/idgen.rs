@@ -7,6 +7,7 @@ use std::time::{Duration, Instant, SystemTime};
 use chrono::{DateTime, NaiveDate, Utc};
 use log::{debug, info, warn};
 use crate::config::IdGenConfig;
+use thiserror::Error;
 
 pub struct IdGenerator {
     config: Arc<IdGeneratorExtendedConfig>,
@@ -29,17 +30,25 @@ impl IdGenerator {
         };
     }
 
-    pub fn generate_ids(&self, count: usize, domain: usize) -> Vec<u64> {
-        let mutex = self.domain_state_holders.get(domain)
-            .expect(&format!("domain_state_holders should contain state for domain {domain}"));
+    pub fn generate_ids(&self, count: usize, domain: usize) -> Result<Vec<u64>, IdGenerationError> {
+        let mutex = match self.domain_state_holders.get(domain) {
+            Some(m) => m,
+            None => return Err(IdGenerationError::IncorrectDomain(domain))
+        };
         let mut lock_result = mutex.lock();
         let state = lock_result.as_mut().unwrap();
-        state.generate_ids(count, domain)
+        Ok(state.generate_ids(count, domain))
     }
 
     pub fn get_max_domain(&self) -> u64 {
         return self.config.max_domain;
     }
+}
+
+#[derive(Error, Debug)]
+pub enum IdGenerationError {
+    #[error("incorrect domain: {0}")]
+    IncorrectDomain(usize)
 }
 
 struct IdGeneratorExtendedConfig {
