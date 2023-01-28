@@ -20,7 +20,7 @@ impl IdGenerator {
         let mut holders = Vec::with_capacity((config.max_domain + 1) as usize);
         let max_domain = config.max_domain;
         let config_rc = Arc::new(config);
-        for i in 0..max_domain {
+        for i in 0..=max_domain {
             holders.push(DomainStateHolder::new(i as u64, Arc::clone(&config_rc), start_timestamp))
         }
         return IdGenerator {
@@ -35,6 +35,10 @@ impl IdGenerator {
         let mut lock_result = mutex.lock();
         let state = lock_result.as_mut().unwrap();
         state.generate_ids(count, domain)
+    }
+
+    pub fn get_domains_count(&self) -> u64 {
+        return self.config.max_domain + 1;
     }
 }
 
