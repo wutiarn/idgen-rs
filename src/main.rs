@@ -1,6 +1,9 @@
+mod http;
+
 use env_logger::Target;
 use log::{info, LevelFilter};
 use rocket;
+use rocket::routes;
 
 #[rocket::main]
 async fn main() {
@@ -9,5 +12,7 @@ async fn main() {
         .target(Target::Stdout)
         .init();
     info!("Starting idgen-rs");
-    let _ = rocket::build().launch().await;
+    let _ = rocket::build()
+        .mount("/", routes![http::generate_ids])
+        .launch().await;
 }
