@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 use std::{result, thread};
 use std::time::{Duration, Instant, SystemTime};
 use chrono::{DateTime, NaiveDate, Utc};
-use log::info;
+use log::{debug, info, warn};
 use crate::config::IdGenConfig;
 
 pub struct IdGenerator {
@@ -16,11 +16,12 @@ pub struct IdGenerator {
 impl IdGenerator {
     pub fn create(config: &IdGenConfig) -> IdGenerator {
         let config = IdGeneratorExtendedConfig::new(config);
+        let start_timestamp = get_current_timestamp(&config);
         let mut holders = Vec::with_capacity((config.max_domain + 1) as usize);
         let max_domain = config.max_domain;
         let config_rc = Arc::new(config);
         for i in 0..max_domain {
-            holders.push(DomainStateHolder::new(i as u64, Arc::clone(&config_rc)))
+            holders.push(DomainStateHolder::new(i as u64, Arc::clone(&config_rc), start_timestamp))
         }
         return IdGenerator {
             config: config_rc,
@@ -96,12 +97,12 @@ struct DomainStateHolder {
 }
 
 impl DomainStateHolder {
-    pub fn new(domain: u64, config: Arc<IdGeneratorExtendedConfig>) -> Mutex<DomainStateHolder> {
+    pub fn new(domain: u64, config: Arc<IdGeneratorExtendedConfig>, start_timestamp: u64) -> Mutex<DomainStateHolder> {
         let holder = DomainStateHolder {
             config,
             domain,
             counter: 0,
-            timestamp: 0,
+            timestamp: start_timestamp,
         };
         Mutex::new(holder)
     }
@@ -131,6 +132,7 @@ impl DomainStateHolder {
         if time_delta > config.reserved_seconds_count {
             self.timestamp = now_timestamp - config.reserved_seconds_count;
             self.counter = 0;
+            debug!("Using earliest reserve second: {0}. domain={1}", self.timestamp, self.domain);
             return;
         }
 
@@ -141,12 +143,14 @@ impl DomainStateHolder {
         if time_delta > 0 {
             self.timestamp = self.timestamp + 1;
             self.counter = 0;
+            debug!("Using next reserve second: {0} ({1} left). domain={2}.", self.timestamp, time_delta - 1, self.domain);
             return;
         }
 
-        DomainStateHolder::wait_for_next_second();
+        self.wait_for_next_second();
         self.timestamp = now_timestamp + 1;
         self.counter = 0;
+        debug!("Using realtime second: {0}. domain={1}", self.timestamp, self.domain);
     }
 
     fn increment_counter(&mut self, config: &IdGeneratorExtendedConfig) {
@@ -156,9 +160,10 @@ impl DomainStateHolder {
         self.counter += 1;
     }
 
-    fn wait_for_next_second() {
+    fn wait_for_next_second(&self) {
         let now = Utc::now();
         let sleep_millis = ((now.timestamp() + 1) * 1000 - now.timestamp_millis() + 1) as u64;
+        warn!("Seconds reserve exhausted. Sleeping {0}ms. domain={1}", sleep_millis, self.domain);
         thread::sleep(Duration::from_millis(sleep_millis));
     }
 }

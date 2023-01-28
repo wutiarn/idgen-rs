@@ -20,7 +20,7 @@ pub struct IdGenConfig {
     pub domain_id_bits: u8,
     #[config(default = 1672531200)]
     pub epoch_start_second: u64,
-    #[config(default = 10)]
+    #[config(default = 60)]
     pub reserved_seconds_count: u64,
 }
 
