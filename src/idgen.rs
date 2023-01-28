@@ -134,7 +134,6 @@ impl DomainStateHolder {
         let config = &*Arc::clone(&self.config);
         self.update_timestamp(config);
         for i in 0..count {
-            self.increment_counter(config);
             let params = IdParams {
                 timestamp: self.timestamp,
                 counter: self.counter,
@@ -142,7 +141,8 @@ impl DomainStateHolder {
                 domain: self.domain,
             };
             let encoded = params.encode(config);
-            vec.push(encoded)
+            vec.push(encoded);
+            self.increment_counter(config);
         }
         return vec;
     }
@@ -178,6 +178,7 @@ impl DomainStateHolder {
     fn increment_counter(&mut self, config: &IdGeneratorExtendedConfig) {
         if self.counter >= config.max_counter_value {
             self.update_timestamp(config);
+            return;
         }
         self.counter += 1;
     }
