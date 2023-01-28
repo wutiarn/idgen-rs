@@ -3,6 +3,7 @@ extern crate core;
 mod http;
 mod error;
 mod idgen;
+mod config;
 
 use env_logger::Target;
 use log::{info, LevelFilter};
