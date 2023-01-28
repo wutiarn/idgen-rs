@@ -1,13 +1,14 @@
 use std::collections::{HashMap, HashSet};
+
 use rocket;
 use rocket::http::ext::IntoCollection;
 use rocket::serde::json::Json;
 use rocket::State;
+use serde::Serialize;
+
+use crate::config::AppConfig;
 use crate::error::HttpError;
 use crate::idgen::{IdGenerationError, IdGenerator};
-use serde::Serialize;
-use crate::config::AppConfig;
-use crate::error::HttpError::BadRequest;
 
 #[rocket::get("/generate?<count>&<domains>")]
 pub fn generate_ids(count: Option<u32>, domains: Option<&str>, id_generator: &State<IdGenerator>) -> Result<Json<GenerateIdsResponse>, HttpError> {
