@@ -6,7 +6,7 @@ use std::time::{Duration, Instant, SystemTime};
 use chrono::{DateTime, NaiveDate, Utc};
 use log::info;
 
-struct IdGeneratorConfig {
+pub struct IdGeneratorConfig {
     timestamp_bits: u8,
     counter_bits: u8,
     instance_id_bits: u8,
@@ -23,7 +23,7 @@ struct IdGeneratorExtendedConfig {
     epoch_start_second: u64,
     reserved_seconds_count: u64,
 
-    max_domain: u64,
+    max_domain: usize,
     max_counter_value: u64,
     max_instance_id: u64,
 }
@@ -37,7 +37,7 @@ impl IdGeneratorExtendedConfig {
             domain_id_bits: config.domain_id_bits,
             epoch_start_second: config.epoch_start_second,
             reserved_seconds_count: config.reserved_seconds_count,
-            max_domain: IdGeneratorExtendedConfig::calculate_max_value_for_bits(config.domain_id_bits),
+            max_domain: IdGeneratorExtendedConfig::calculate_max_value_for_bits(config.domain_id_bits) as usize,
             max_counter_value: IdGeneratorExtendedConfig::calculate_max_value_for_bits(config.counter_bits),
             max_instance_id: IdGeneratorExtendedConfig::calculate_max_value_for_bits(config.instance_id_bits),
         };
@@ -45,7 +45,7 @@ impl IdGeneratorExtendedConfig {
         result
     }
 
-    pub fn validate(&self) {
+    fn validate(&self) {
         let bits_count: u32 = 0u32
             + self.timestamp_bits as u32
             + self.counter_bits as u32
@@ -90,13 +90,13 @@ impl IdGenerator {
 
 struct DomainStateHolder {
     config: Arc<IdGeneratorExtendedConfig>,
-    domain: u64,
+    domain: usize,
     timestamp: u64,
     counter: u64,
 }
 
 impl DomainStateHolder {
-    pub fn new(domain: u64, config: Arc<IdGeneratorExtendedConfig>) -> Mutex<DomainStateHolder> {
+    pub fn new(domain: usize, config: Arc<IdGeneratorExtendedConfig>) -> Mutex<DomainStateHolder> {
         let holder = DomainStateHolder {
             config,
             domain,
