@@ -37,8 +37,8 @@ impl IdGenerator {
         state.generate_ids(count, domain)
     }
 
-    pub fn get_domains_count(&self) -> u64 {
-        return self.config.max_domain + 1;
+    pub fn get_max_domain(&self) -> u64 {
+        return self.config.max_domain;
     }
 }
 

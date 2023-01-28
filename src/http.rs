@@ -18,8 +18,19 @@ pub fn generate_ids(count: Option<u32>, domains: Option<&str>, id_generator: &St
     }
 
     let domains: Vec<u64> = match domains {
-        Some(domains_str) => domains_str.split(",").map(|s| s.parse::<u64>().unwrap()).collect(),
-        None => (0..id_generator.get_domains_count()).collect()
+        Some(domains_str) => {
+            let domain_strs = domains_str.split(",");
+            let mut result = Vec::with_capacity((id_generator.get_max_domain() + 1) as usize);
+            for s in domain_strs {
+                let parse_result = s.parse::<u64>();
+                match parse_result {
+                    Ok(i) => result.push(i),
+                    Err(e) => return Err(HttpError::BadRequest(format!("Failed to parse domain '{s}' to u64")))
+                }
+            }
+            result
+        },
+        None => (0..=id_generator.get_max_domain()).collect()
     };
 
     let mut ids_by_domain = HashMap::with_capacity(domains.len());
