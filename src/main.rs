@@ -1,4 +1,5 @@
 mod http;
+mod error;
 
 use env_logger::Target;
 use log::{info, LevelFilter};
