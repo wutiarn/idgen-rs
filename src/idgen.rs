@@ -1,7 +1,8 @@
+use std::cmp::max;
 use std::fmt::format;
 use std::ops::Add;
 use std::sync::{Arc, Mutex};
-use std::thread;
+use std::{result, thread};
 use std::time::{Duration, Instant, SystemTime};
 use chrono::{DateTime, NaiveDate, Utc};
 use log::info;
@@ -23,9 +24,10 @@ struct IdGeneratorExtendedConfig {
     epoch_start_second: u64,
     reserved_seconds_count: u64,
 
-    max_domain: usize,
-    max_counter_value: u64,
+    max_timestamp: u64,
     max_instance_id: u64,
+    max_counter_value: u64,
+    max_domain: u64,
 }
 
 impl IdGeneratorExtendedConfig {
@@ -37,9 +39,10 @@ impl IdGeneratorExtendedConfig {
             domain_id_bits: config.domain_id_bits,
             epoch_start_second: config.epoch_start_second,
             reserved_seconds_count: config.reserved_seconds_count,
-            max_domain: IdGeneratorExtendedConfig::calculate_max_value_for_bits(config.domain_id_bits) as usize,
-            max_counter_value: IdGeneratorExtendedConfig::calculate_max_value_for_bits(config.counter_bits),
+            max_timestamp: IdGeneratorExtendedConfig::calculate_max_value_for_bits(config.timestamp_bits),
             max_instance_id: IdGeneratorExtendedConfig::calculate_max_value_for_bits(config.instance_id_bits),
+            max_counter_value: IdGeneratorExtendedConfig::calculate_max_value_for_bits(config.counter_bits),
+            max_domain: IdGeneratorExtendedConfig::calculate_max_value_for_bits(config.domain_id_bits),
         };
         result.validate();
         result
@@ -52,6 +55,8 @@ impl IdGeneratorExtendedConfig {
             + self.instance_id_bits as u32
             + self.domain_id_bits as u32;
         assert!(bits_count <= 63, "bits sum must be less or equal to 63");
+        let max_usize = usize::MAX;
+        assert!(self.max_domain <= usize::MAX as u64, "max domain must not exceed usize");
         assert!(get_current_timestamp(&self) > 0, "epoch_start_second must be in the past");
     }
 
@@ -72,7 +77,7 @@ impl IdGenerator {
         let max_domain = config.max_domain;
         let config_rc = Arc::new(config);
         for i in 0..max_domain {
-            holders.push(DomainStateHolder::new(i, Arc::clone(&config_rc)))
+            holders.push(DomainStateHolder::new(i as u64, Arc::clone(&config_rc)))
         }
         return IdGenerator {
             config: config_rc,
@@ -90,13 +95,13 @@ impl IdGenerator {
 
 struct DomainStateHolder {
     config: Arc<IdGeneratorExtendedConfig>,
-    domain: usize,
+    domain: u64,
     timestamp: u64,
     counter: u64,
 }
 
 impl DomainStateHolder {
-    pub fn new(domain: usize, config: Arc<IdGeneratorExtendedConfig>) -> Mutex<DomainStateHolder> {
+    pub fn new(domain: u64, config: Arc<IdGeneratorExtendedConfig>) -> Mutex<DomainStateHolder> {
         let holder = DomainStateHolder {
             config,
             domain,
@@ -146,6 +151,33 @@ impl DomainStateHolder {
         let now = Utc::now();
         let sleep_millis = ((now.timestamp() + 1) * 1000 - now.timestamp_millis() + 1) as u64;
         thread::sleep(Duration::from_millis(sleep_millis));
+    }
+}
+
+struct IdParams {
+    timestamp: u64,
+    counter: u64,
+    instance_id: u64,
+    domain: u64
+}
+
+impl IdParams {
+    fn encode(&self, config: &IdGeneratorExtendedConfig) {
+        let mut result = 0u64;
+        result = IdParams::encode_part(result, self.timestamp, config.max_timestamp, config.timestamp_bits);
+        result = IdParams::encode_part(result, self.counter, config.max_counter_value, config.counter_bits);
+        result = IdParams::encode_part(result, self.instance_id, config.max_instance_id, config.instance_id_bits);
+        result = IdParams::encode_part(result, self.domain, config.max_domain, config.domain_id_bits);
+
+
+
+        ;
+    }
+
+    fn encode_part(target: u64, value: u64, max_value: u64, bits: u8) -> u64 {
+        let masked = value & max_value;
+        assert_eq!(masked, value, "value must not exceed max_value");
+        return target << bits | masked
     }
 }
 
