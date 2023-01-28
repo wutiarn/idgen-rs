@@ -22,8 +22,8 @@ impl IdGeneratorConfig {
         assert!(bits_count <= 63, "bits sum must be less or equal to 63")
     }
 
-    pub fn get_domains_count(&self) -> u8 {
-        return 2u8.pow(self.domain_id_bits as u32);
+    pub fn get_domains_count(&self) -> u64 {
+        return 2u64.pow(self.domain_id_bits as u32) - 1;
     }
 }
 
@@ -32,7 +32,7 @@ struct IdGenerator {
 }
 
 struct DomainStateHolder {
-    domain: u8,
+    domain: u64,
     timestamp: u64,
     counter: u64,
 }
@@ -59,7 +59,7 @@ impl IdGenerator {
 }
 
 impl DomainStateHolder {
-    pub fn new(domain: u8) -> Mutex<DomainStateHolder> {
+    pub fn new(domain: u64) -> Mutex<DomainStateHolder> {
         let holder = DomainStateHolder {
             domain,
             counter: 0,
@@ -78,5 +78,17 @@ fn get_current_timestamp() {}
 mod tests {
     use super::*;
 
-
+    #[test]
+    fn generate_id() {
+        let config = IdGeneratorConfig {
+            timestamp_bits: 35,
+            counter_bits: 14,
+            instance_id_bits: 6,
+            domain_id_bits: 8,
+            epoch_start: Instant::now(),
+            reserved_seconds_count: 0,
+        };
+        let generator = IdGenerator::create(&config);
+        generator.generate_id();
+    }
 }

@@ -1,3 +1,5 @@
+extern crate core;
+
 mod http;
 mod error;
 mod idgen;
