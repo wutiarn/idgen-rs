@@ -8,6 +8,7 @@ use chrono::{DateTime, NaiveDate, Utc};
 use log::info;
 
 pub struct IdGeneratorConfig {
+    instance_id: u64,
     timestamp_bits: u8,
     counter_bits: u8,
     instance_id_bits: u8,
@@ -17,6 +18,7 @@ pub struct IdGeneratorConfig {
 }
 
 struct IdGeneratorExtendedConfig {
+    instance_id: u64,
     timestamp_bits: u8,
     counter_bits: u8,
     instance_id_bits: u8,
@@ -33,6 +35,7 @@ struct IdGeneratorExtendedConfig {
 impl IdGeneratorExtendedConfig {
     fn new(config: IdGeneratorConfig) -> IdGeneratorExtendedConfig {
         let result = IdGeneratorExtendedConfig {
+            instance_id: config.instance_id,
             timestamp_bits: config.timestamp_bits,
             counter_bits: config.counter_bits,
             instance_id_bits: config.instance_id_bits,
@@ -56,7 +59,7 @@ impl IdGeneratorExtendedConfig {
             + self.domain_id_bits as u32;
         assert!(bits_count <= 63, "bits sum must be less or equal to 63");
         let max_usize = usize::MAX;
-        assert!(self.max_domain <= usize::MAX as u64, "max domain must not exceed usize");
+        assert!(self.max_domain + 1 <= usize::MAX as u64, "max domain must not exceed usize");
         assert!(get_current_timestamp(&self) > 0, "epoch_start_second must be in the past");
     }
 
@@ -73,7 +76,7 @@ struct IdGenerator {
 impl IdGenerator {
     pub fn create(config: IdGeneratorConfig) -> IdGenerator {
         let config = IdGeneratorExtendedConfig::new(config);
-        let mut holders = Vec::new();
+        let mut holders = Vec::with_capacity((config.max_domain + 1) as usize);
         let max_domain = config.max_domain;
         let config_rc = Arc::new(config);
         for i in 0..max_domain {
@@ -85,11 +88,12 @@ impl IdGenerator {
         };
     }
 
-    pub fn generate_id(&self, domain: usize) {
+    pub fn generate_ids(&self, count: usize, domain: usize) -> Vec<u64> {
         let mutex = self.domain_state_holders.get(domain)
             .expect(&format!("domain_state_holders should contain state for domain {domain}"));
-        let state = mutex.lock().unwrap();
-        state.generate_ids()
+        let mut lock_result = mutex.lock();
+        let state = lock_result.as_mut().unwrap();
+        state.generate_ids(count, domain)
     }
 }
 
@@ -111,8 +115,22 @@ impl DomainStateHolder {
         Mutex::new(holder)
     }
 
-    pub fn generate_ids(&self) {
-        info!("Generating ids...")
+    pub fn generate_ids(&mut self, count: usize, domain: usize) -> Vec<u64> {
+        let mut vec: Vec<u64> = Vec::with_capacity(count);
+        let config = &*self.config;
+        self.update_timestamp(config);
+        for i in 0..count {
+            self.increment_counter(config);
+            let params = IdParams {
+                timestamp: self.timestamp,
+                counter: self.counter,
+                instance_id: self.config.instance_id,
+                domain: self.domain,
+            };
+            let encoded = params.encode(config);
+            vec.push(encoded)
+        }
+        return vec;
     }
 
     fn update_timestamp(&mut self, config: &IdGeneratorExtendedConfig) {
@@ -212,7 +230,8 @@ mod tests {
     fn generate_id() {
         let config = build_config();
         let generator = IdGenerator::create(config);
-        generator.generate_id(0);
+        let generated = generator.generate_ids(100, 5);
+        assert_eq!(generated.len(), 100);
     }
 
     #[test]
@@ -234,6 +253,7 @@ mod tests {
 
     fn build_config() -> IdGeneratorConfig {
         return IdGeneratorConfig {
+            instance_id: 1,
             timestamp_bits: 35,
             counter_bits: 14,
             instance_id_bits: 6,
