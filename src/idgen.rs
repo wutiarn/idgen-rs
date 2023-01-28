@@ -110,19 +110,17 @@ impl DomainStateHolder {
         info!("Generating ids...")
     }
 
-    fn increment_counter(&mut self) {
-        let config = &*self.config;
-        let nowTimestamp = get_current_timestamp(&config);
-        let time_delta = nowTimestamp - self.timestamp;
+    fn update_timestamp(&mut self, config: &IdGeneratorExtendedConfig) {
+        let now_timestamp = get_current_timestamp(&config);
+        let time_delta = now_timestamp - self.timestamp;
 
         if time_delta > config.reserved_seconds_count {
-            self.timestamp = nowTimestamp - config.reserved_seconds_count;
+            self.timestamp = now_timestamp - config.reserved_seconds_count;
             self.counter = 0;
             return;
         }
 
         if self.counter < config.max_counter_value {
-            self.counter += 1;
             return;
         }
 
@@ -133,8 +131,15 @@ impl DomainStateHolder {
         }
 
         DomainStateHolder::wait_for_next_second();
-        self.timestamp = nowTimestamp + 1;
+        self.timestamp = now_timestamp + 1;
         self.counter = 0;
+    }
+
+    fn increment_counter(&mut self, config: &IdGeneratorExtendedConfig) {
+        if self.counter >= config.max_counter_value {
+            self.update_timestamp(config);
+        }
+        self.counter += 1;
     }
 
     fn wait_for_next_second() {
@@ -171,7 +176,7 @@ mod tests {
             counter: config.max_counter_value,
         };
 
-        holder.increment_counter();
+        holder.increment_counter(&config);
 
         let end_timestamp = get_current_timestamp(&config);
         assert!(end_timestamp > start_timestamp, "timestamp was not incremented");
