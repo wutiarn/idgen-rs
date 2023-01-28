@@ -3,7 +3,6 @@ use std::io::Cursor;
 use log::info;
 use rocket::{Request, Response};
 use rocket::http::{Header, Status};
-use rocket::http::hyper::server::conn::Http;
 use rocket::response::Responder;
 use thiserror::Error;
 
@@ -11,7 +10,6 @@ use thiserror::Error;
 pub enum HttpError {
     #[error("bad request: {0}")]
     BadRequest(String),
-    #[error("internal server error: {0}")]
     InternalServerError(String),
 }
 
