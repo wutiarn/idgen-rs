@@ -15,7 +15,36 @@ struct IdGeneratorConfig {
     reserved_seconds_count: u64,
 }
 
-impl IdGeneratorConfig {
+struct IdGeneratorExtendedConfig {
+    timestamp_bits: u8,
+    counter_bits: u8,
+    instance_id_bits: u8,
+    domain_id_bits: u8,
+    epoch_start_second: u64,
+    reserved_seconds_count: u64,
+
+    max_domain: u64,
+    max_counter_value: u64,
+    max_instance_id: u64,
+}
+
+impl IdGeneratorExtendedConfig {
+    fn new(config: IdGeneratorConfig) -> IdGeneratorExtendedConfig {
+        let result = IdGeneratorExtendedConfig {
+            timestamp_bits: config.timestamp_bits,
+            counter_bits: config.counter_bits,
+            instance_id_bits: config.instance_id_bits,
+            domain_id_bits: config.domain_id_bits,
+            epoch_start_second: config.epoch_start_second,
+            reserved_seconds_count: config.reserved_seconds_count,
+            max_domain: IdGeneratorExtendedConfig::calculate_max_value_for_bits(config.domain_id_bits),
+            max_counter_value: IdGeneratorExtendedConfig::calculate_max_value_for_bits(config.counter_bits),
+            max_instance_id: IdGeneratorExtendedConfig::calculate_max_value_for_bits(config.instance_id_bits),
+        };
+        result.validate();
+        result
+    }
+
     pub fn validate(&self) {
         let bits_count: u32 = 0u32
             + self.timestamp_bits as u32
@@ -26,27 +55,23 @@ impl IdGeneratorConfig {
         assert!(get_current_timestamp(&self) > 0, "epoch_start_second must be in the past");
     }
 
-    pub fn get_domains_count(&self) -> u64 {
-        return 2u64.pow(self.domain_id_bits as u32) - 1;
-    }
-
-    pub fn get_max_counter_value(&self) -> u64 {
-        return 2u64.pow(self.counter_bits as u32) - 1;
+    fn calculate_max_value_for_bits(bits_count: u8) -> u64 {
+        return 2u64.pow(bits_count as u32) - 1;
     }
 }
 
 struct IdGenerator {
-    config: Arc<IdGeneratorConfig>,
+    config: Arc<IdGeneratorExtendedConfig>,
     domain_state_holders: Vec<Mutex<DomainStateHolder>>,
 }
 
 impl IdGenerator {
     pub fn create(config: IdGeneratorConfig) -> IdGenerator {
-        config.validate();
+        let config = IdGeneratorExtendedConfig::new(config);
         let mut holders = Vec::new();
-        let domains_count = config.get_domains_count();
+        let max_domain = config.max_domain;
         let config_rc = Arc::new(config);
-        for i in 0..domains_count {
+        for i in 0..max_domain {
             holders.push(DomainStateHolder::new(i, Arc::clone(&config_rc)))
         }
         return IdGenerator {
@@ -64,14 +89,14 @@ impl IdGenerator {
 }
 
 struct DomainStateHolder {
-    config: Arc<IdGeneratorConfig>,
+    config: Arc<IdGeneratorExtendedConfig>,
     domain: u64,
     timestamp: u64,
     counter: u64,
 }
 
 impl DomainStateHolder {
-    pub fn new(domain: u64, config: Arc<IdGeneratorConfig>) -> Mutex<DomainStateHolder> {
+    pub fn new(domain: u64, config: Arc<IdGeneratorExtendedConfig>) -> Mutex<DomainStateHolder> {
         let holder = DomainStateHolder {
             config,
             domain,
@@ -96,7 +121,7 @@ impl DomainStateHolder {
             return;
         }
 
-        if self.counter < config.get_max_counter_value() {
+        if self.counter < config.max_counter_value {
             self.counter += 1;
             return;
         }
@@ -119,7 +144,7 @@ impl DomainStateHolder {
     }
 }
 
-fn get_current_timestamp(config: &IdGeneratorConfig) -> u64 {
+fn get_current_timestamp(config: &IdGeneratorExtendedConfig) -> u64 {
     let current_unix_timestamp = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
     return current_unix_timestamp - config.epoch_start_second;
 }
@@ -137,13 +162,13 @@ mod tests {
 
     #[test]
     fn sleep_until_next_second() {
-        let config = Arc::new(build_config());
+        let config = Arc::new(IdGeneratorExtendedConfig::new(build_config()));
         let start_timestamp = get_current_timestamp(&config);
         let mut holder = DomainStateHolder {
             config: Arc::clone(&config),
             domain: 0,
             timestamp: start_timestamp,
-            counter: config.get_max_counter_value(),
+            counter: config.max_counter_value,
         };
 
         holder.increment_counter();
