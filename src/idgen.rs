@@ -154,30 +154,48 @@ impl DomainStateHolder {
     }
 }
 
+#[derive(PartialEq, Debug)]
 struct IdParams {
     timestamp: u64,
     counter: u64,
     instance_id: u64,
-    domain: u64
+    domain: u64,
 }
 
 impl IdParams {
-    fn encode(&self, config: &IdGeneratorExtendedConfig) {
+    fn encode(&self, config: &IdGeneratorExtendedConfig) -> u64 {
         let mut result = 0u64;
         result = IdParams::encode_part(result, self.timestamp, config.max_timestamp, config.timestamp_bits);
         result = IdParams::encode_part(result, self.counter, config.max_counter_value, config.counter_bits);
         result = IdParams::encode_part(result, self.instance_id, config.max_instance_id, config.instance_id_bits);
         result = IdParams::encode_part(result, self.domain, config.max_domain, config.domain_id_bits);
-
-
-
-        ;
+        return result;
     }
 
-    fn encode_part(target: u64, value: u64, max_value: u64, bits: u8) -> u64 {
-        let masked = value & max_value;
+    fn parse(encoded: u64, config: &IdGeneratorExtendedConfig) -> IdParams {
+        let mut src = encoded;
+        let (domain, src) = IdParams::parse_part(src, config.max_domain, config.domain_id_bits);
+        let (instance_id, src) = IdParams::parse_part(src, config.max_instance_id, config.instance_id_bits);
+        let (counter, src) = IdParams::parse_part(src, config.max_counter_value, config.counter_bits);
+        let (timestamp, src) = IdParams::parse_part(src, config.max_timestamp, config.timestamp_bits);
+        IdParams {
+            timestamp,
+            counter,
+            instance_id,
+            domain,
+        }
+    }
+
+    fn encode_part(target: u64, value: u64, mask: u64, bits: u8) -> u64 {
+        let masked = value & mask;
         assert_eq!(masked, value, "value must not exceed max_value");
-        return target << bits | masked
+        return target << bits | masked;
+    }
+
+    fn parse_part(src: u64, mask: u64, bits: u8) -> (u64, u64) {
+        let value = src & mask;
+        let remainder = src >> bits;
+        return (value, remainder);
     }
 }
 
@@ -223,5 +241,21 @@ mod tests {
             epoch_start_second: 1672531200,
             reserved_seconds_count: 0,
         };
+    }
+
+    #[test]
+    fn encode_decode_id() {
+        let config = IdGeneratorExtendedConfig::new(build_config());
+        let params = IdParams {
+            timestamp: 1458569,
+            counter: 1,
+            instance_id: 5,
+            domain: 9,
+        };
+        let encoded = params.encode(&config);
+        assert_eq!(encoded, 391531634640137, "should generate expected id");
+
+        let decoded = IdParams::parse(encoded, &config);
+        assert_eq!(params, decoded, "decoded should be equals to initial params")
     }
 }
