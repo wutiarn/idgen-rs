@@ -18,6 +18,7 @@ impl IdGenerator {
     pub fn create(config: &IdGenConfig) -> IdGenerator {
         let config = IdGeneratorExtendedConfig::new(config);
         let start_timestamp = get_current_timestamp(&config);
+        debug!("Initializing id generator with start timestamp {start_timestamp}");
         let mut holders = Vec::with_capacity((config.max_domain + 1) as usize);
         let max_domain = config.max_domain;
         let config_rc = Arc::new(config);

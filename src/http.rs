@@ -17,7 +17,7 @@ pub fn generate_ids(count: Option<u32>, domains: Option<&str>, id_generator: &St
         None => 10
     };
     if count <= 0 {
-       return Err(HttpError::BadRequest("count must be greater than 0".into()))
+        return Err(HttpError::BadRequest("count must be greater than 0".into()));
     }
 
     let domains: Vec<u64> = match domains {
@@ -29,16 +29,16 @@ pub fn generate_ids(count: Option<u32>, domains: Option<&str>, id_generator: &St
                 match parse_result {
                     Ok(i) => {
                         domain_set.insert(i);
-                    },
+                    }
                     Err(e) => return Err(HttpError::BadRequest(format!("failed to parse domain '{s}' to u64")))
                 }
             }
             domain_set.into_iter().collect()
-        },
+        }
         None => (0..=id_generator.get_max_domain()).collect()
     };
 
-    let mut ids_by_domain = HashMap::with_capacity(domains.len());
+    let mut ids_by_domain = Vec::with_capacity(domains.len());
     for domain in domains {
         let ids = match id_generator.generate_ids(count as usize, domain as usize) {
             Ok(ids) => ids,
@@ -46,12 +46,18 @@ pub fn generate_ids(count: Option<u32>, domains: Option<&str>, id_generator: &St
                 IdGenerationError::IncorrectDomain(_) => return Err(HttpError::BadRequest(e.to_string()))
             }
         };
-        ids_by_domain.insert(domain, ids);
+        ids_by_domain.push(IdsForDomain { domain, ids });
     }
     Ok(Json(GenerateIdsResponse { ids_by_domain }))
 }
 
 #[derive(Serialize, Debug)]
 pub struct GenerateIdsResponse {
-    pub ids_by_domain: HashMap<u64, Vec<u64>>
+    pub ids_by_domain: Vec<IdsForDomain>,
+}
+
+#[derive(Serialize, Debug)]
+pub struct IdsForDomain {
+    pub domain: u64,
+    pub ids: Vec<u64>,
 }
