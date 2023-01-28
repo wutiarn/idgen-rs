@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use chrono::{DateTime, TimeZone, Utc};
 
 use rocket;
 use rocket::http::ext::IntoCollection;
@@ -8,7 +9,7 @@ use serde::Serialize;
 
 use crate::config::AppConfig;
 use crate::error::HttpError;
-use crate::idgen::{IdGenerationError, IdGenerator};
+use crate::idgen::{IdGenerationError, IdGenerator, IdParams};
 
 #[rocket::get("/generate?<count>&<domains>")]
 pub fn generate_ids(count: Option<u32>, domains: Option<&str>, id_generator: &State<IdGenerator>) -> Result<Json<GenerateIdsResponse>, HttpError> {
@@ -51,6 +52,22 @@ pub fn generate_ids(count: Option<u32>, domains: Option<&str>, id_generator: &St
     Ok(Json(GenerateIdsResponse { ids_by_domain }))
 }
 
+#[rocket::get("/parse?<id>")]
+pub fn parse_id(id: u64, id_generator: &State<IdGenerator>) -> Json<ParseIdResponse> {
+    let id_params = id_generator.decode(id);
+    let epoch_start = id_generator.get_epoch_start();
+    let timestamp = Utc.timestamp_opt((epoch_start + id_params.timestamp) as i64, 0).unwrap();
+    return Json(
+        ParseIdResponse {
+            timestamp: id_params.timestamp,
+            decoded_timestamp: timestamp.to_rfc3339(),
+            counter: id_params.counter,
+            instance_id: id_params.instance_id,
+            domain: id_params.domain,
+        }
+    );
+}
+
 #[derive(Serialize, Debug)]
 pub struct GenerateIdsResponse {
     pub ids_by_domain: Vec<IdsForDomain>,
@@ -60,4 +77,13 @@ pub struct GenerateIdsResponse {
 pub struct IdsForDomain {
     pub domain: u64,
     pub ids: Vec<u64>,
+}
+
+#[derive(Serialize, Debug)]
+pub struct ParseIdResponse {
+    domain: u64,
+    timestamp: u64,
+    decoded_timestamp: String,
+    instance_id: u64,
+    counter: u64,
 }

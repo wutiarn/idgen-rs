@@ -24,7 +24,7 @@ async fn main() {
 
     info!("Starting idgen-rs");
     let _ = rocket::build()
-        .mount("/", routes![http::generate_ids])
+        .mount("/", routes![http::generate_ids, http::parse_id])
         .manage(config)
         .manage(idGenerator)
         .launch().await;

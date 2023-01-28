@@ -4,7 +4,7 @@ use std::ops::Add;
 use std::sync::{Arc, Mutex};
 use std::{result, thread};
 use std::time::{Duration, Instant, SystemTime};
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::{DateTime, NaiveDate, TimeZone, Utc};
 use log::{debug, info, warn};
 use crate::config::IdGenConfig;
 use thiserror::Error;
@@ -41,8 +41,16 @@ impl IdGenerator {
         Ok(state.generate_ids(count, domain))
     }
 
+    pub fn decode(&self, id: u64) -> IdParams {
+        return IdParams::decode(id, &self.config)
+    }
+
     pub fn get_max_domain(&self) -> u64 {
         return self.config.max_domain;
+    }
+
+    pub fn get_epoch_start(&self) -> u64 {
+        return self.config.epoch_start_second
     }
 }
 
@@ -183,11 +191,11 @@ impl DomainStateHolder {
 }
 
 #[derive(PartialEq, Debug)]
-struct IdParams {
-    timestamp: u64,
-    counter: u64,
-    instance_id: u64,
-    domain: u64,
+pub struct IdParams {
+    pub timestamp: u64,
+    pub counter: u64,
+    pub instance_id: u64,
+    pub domain: u64,
 }
 
 impl IdParams {
