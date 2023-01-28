@@ -1,8 +1,8 @@
 use std::io::Cursor;
+
 use log::info;
-use rocket::http::{Header, Status};
 use rocket::{Request, Response};
-use rocket::futures::future::err;
+use rocket::http::{Header, Status};
 use rocket::http::hyper::server::conn::Http;
 use rocket::response::Responder;
 use thiserror::Error;
@@ -15,17 +15,17 @@ pub enum HttpError {
     InternalServerError(String),
 }
 
-impl HttpError {}
-
-pub fn get_message(error: &HttpError) -> String {
-    return match error {
-        HttpError::BadRequest(message) => {
-            message.to_string()
-        }
-        other => {
-            "Unknown error".to_string()
-        }
-    };
+impl HttpError {
+    pub fn get_status(&self) -> Status {
+        return match self {
+            HttpError::BadRequest(_) => {
+                Status::BadRequest
+            }
+            _other => {
+                Status::InternalServerError
+            }
+        };
+    }
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for HttpError {
@@ -33,7 +33,7 @@ impl<'r, 'o: 'r> Responder<'r, 'o> for HttpError {
         let response_body = self.to_string();
         info!("Responding with error: {}", response_body);
         Response::build()
-            .status(Status::InternalServerError)
+            .status(self.get_status())
             .header(Header::new("Content-Type", "text/plain"))
             .sized_body(response_body.len(), Cursor::new(response_body))
             .ok()
