@@ -1,15 +1,12 @@
-use std::collections::{HashMap, HashSet};
-use chrono::{DateTime, TimeZone, Utc};
-
+use std::collections::HashSet;
+use chrono::{TimeZone, Utc};
 use rocket;
-use rocket::http::ext::IntoCollection;
 use rocket::serde::json::Json;
 use rocket::State;
 use serde::Serialize;
 
-use crate::config::AppConfig;
 use crate::error::HttpError;
-use crate::idgen::{IdGenerationError, IdGenerator, IdParams};
+use crate::idgen::{IdGenerationError, IdGenerator};
 
 #[rocket::get("/generate?<count>&<domains>")]
 pub fn generate_ids(count: Option<u32>, domains: Option<&str>, id_generator: &State<IdGenerator>) -> Result<Json<GenerateIdsResponse>, HttpError> {
@@ -31,7 +28,7 @@ pub fn generate_ids(count: Option<u32>, domains: Option<&str>, id_generator: &St
                     Ok(i) => {
                         domain_set.insert(i);
                     }
-                    Err(e) => return Err(HttpError::BadRequest(format!("failed to parse domain '{s}' to u64")))
+                    Err(_) => return Err(HttpError::BadRequest(format!("failed to parse domain '{s}' to u64")))
                 }
             }
             domain_set.into_iter().collect()

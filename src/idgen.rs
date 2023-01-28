@@ -1,13 +1,12 @@
-use std::cmp::max;
-use std::fmt::format;
-use std::ops::Add;
+use std::thread;
 use std::sync::{Arc, Mutex};
-use std::{result, thread};
-use std::time::{Duration, Instant, SystemTime};
-use chrono::{DateTime, NaiveDate, TimeZone, Utc};
-use log::{debug, info, warn};
-use crate::config::IdGenConfig;
+use std::time::{Duration, SystemTime};
+use chrono::Utc;
+
+use log::{debug, warn};
 use thiserror::Error;
+
+use crate::config::IdGenConfig;
 
 pub struct IdGenerator {
     config: Arc<IdGeneratorExtendedConfig>,
@@ -38,11 +37,11 @@ impl IdGenerator {
         };
         let mut lock_result = mutex.lock();
         let state = lock_result.as_mut().unwrap();
-        Ok(state.generate_ids(count, domain))
+        Ok(state.generate_ids(count))
     }
 
     pub fn decode(&self, id: u64) -> IdParams {
-        return IdParams::decode(id, &self.config)
+        return IdParams::decode(id, &self.config);
     }
 
     pub fn get_max_domain(&self) -> u64 {
@@ -50,7 +49,7 @@ impl IdGenerator {
     }
 
     pub fn get_epoch_start(&self) -> u64 {
-        return self.config.epoch_start_second
+        return self.config.epoch_start_second;
     }
 }
 
@@ -101,7 +100,6 @@ impl IdGeneratorExtendedConfig {
             + self.instance_id_bits as u32
             + self.domain_id_bits as u32;
         assert!(bits_count <= 63, "bits sum must be less or equal to 63");
-        let max_usize = usize::MAX;
         assert!(self.max_domain + 1 <= usize::MAX as u64, "max domain must not exceed usize");
         assert!(get_current_timestamp(&self) > 0, "epoch_start_second must be in the past");
     }
@@ -129,11 +127,11 @@ impl DomainStateHolder {
         Mutex::new(holder)
     }
 
-    pub fn generate_ids(&mut self, count: usize, domain: usize) -> Vec<u64> {
+    pub fn generate_ids(&mut self, count: usize) -> Vec<u64> {
         let mut vec: Vec<u64> = Vec::with_capacity(count);
         let config = &*Arc::clone(&self.config);
         self.update_timestamp(config);
-        for i in 0..count {
+        for _ in 0..count {
             let params = IdParams {
                 timestamp: self.timestamp,
                 counter: self.counter,
@@ -210,11 +208,11 @@ impl IdParams {
     }
 
     fn decode(encoded: u64, config: &IdGeneratorExtendedConfig) -> IdParams {
-        let mut src = encoded;
+        let src = encoded;
         let (domain, src) = IdParams::decode_part(src, config.max_domain, config.domain_id_bits);
         let (counter, src) = IdParams::decode_part(src, config.max_counter_value, config.counter_bits);
         let (instance_id, src) = IdParams::decode_part(src, config.max_instance_id, config.instance_id_bits);
-        let (timestamp, src) = IdParams::decode_part(src, config.max_timestamp, config.timestamp_bits);
+        let (timestamp, _) = IdParams::decode_part(src, config.max_timestamp, config.timestamp_bits);
         IdParams {
             timestamp,
             counter,
