@@ -194,8 +194,8 @@ impl IdParams {
     fn encode(&self, config: &IdGeneratorExtendedConfig) -> u64 {
         let mut result = 0u64;
         result = IdParams::encode_part(result, self.timestamp, config.max_timestamp, config.timestamp_bits);
-        result = IdParams::encode_part(result, self.counter, config.max_counter_value, config.counter_bits);
         result = IdParams::encode_part(result, self.instance_id, config.max_instance_id, config.instance_id_bits);
+        result = IdParams::encode_part(result, self.counter, config.max_counter_value, config.counter_bits);
         result = IdParams::encode_part(result, self.domain, config.max_domain, config.domain_id_bits);
         return result;
     }
@@ -203,8 +203,8 @@ impl IdParams {
     fn decode(encoded: u64, config: &IdGeneratorExtendedConfig) -> IdParams {
         let mut src = encoded;
         let (domain, src) = IdParams::decode_part(src, config.max_domain, config.domain_id_bits);
-        let (instance_id, src) = IdParams::decode_part(src, config.max_instance_id, config.instance_id_bits);
         let (counter, src) = IdParams::decode_part(src, config.max_counter_value, config.counter_bits);
+        let (instance_id, src) = IdParams::decode_part(src, config.max_instance_id, config.instance_id_bits);
         let (timestamp, src) = IdParams::decode_part(src, config.max_timestamp, config.timestamp_bits);
         IdParams {
             timestamp,
@@ -239,14 +239,14 @@ mod tests {
     #[test]
     fn generate_id() {
         let config = build_config();
-        let generator = IdGenerator::create(config);
-        let generated = generator.generate_ids(100, 5);
+        let generator = IdGenerator::create(&config);
+        let generated = generator.generate_ids(100, 5).unwrap();
         assert_eq!(generated.len(), 100);
     }
 
     #[test]
     fn sleep_until_next_second() {
-        let config = Arc::new(IdGeneratorExtendedConfig::new(build_config()));
+        let config = Arc::new(IdGeneratorExtendedConfig::new(&build_config()));
         let start_timestamp = get_current_timestamp(&config);
         let mut holder = DomainStateHolder {
             config: Arc::clone(&config),
@@ -262,7 +262,7 @@ mod tests {
     }
 
     fn build_config() -> IdGenConfig {
-        return IdGeneratorConfig {
+        return IdGenConfig {
             instance_id: 1,
             timestamp_bits: 35,
             counter_bits: 14,
@@ -275,7 +275,7 @@ mod tests {
 
     #[test]
     fn encode_decode_id() {
-        let config = IdGeneratorExtendedConfig::new(build_config());
+        let config = IdGeneratorExtendedConfig::new(&build_config());
         let params = IdParams {
             timestamp: 1458569,
             counter: 1,
@@ -283,7 +283,7 @@ mod tests {
             domain: 9,
         };
         let encoded = params.encode(&config);
-        assert_eq!(encoded, 391531634640137, "should generate expected id");
+        assert_eq!(encoded, 391531655594249, "should generate expected id");
 
         let decoded = IdParams::decode(encoded, &config);
         assert_eq!(params, decoded, "decoded should be equals to initial params")
