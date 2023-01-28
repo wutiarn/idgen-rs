@@ -27,18 +27,31 @@ impl IdGeneratorConfig {
     }
 }
 
-struct IdGenerator {
-    domain_state_holders: Vec<Mutex<DomainStateHolder>>,
+struct IdGenerator<'t> {
+    config: IdGeneratorConfig,
+    domain_state_holders: Vec<Mutex<DomainStateHolder<'t>>>,
 }
 
-struct DomainStateHolder {
+struct DomainStateHolder<'t> {
+    config: &'t IdGeneratorConfig,
     domain: u64,
     timestamp: u64,
-    counter: u64,
+    counter: u64
 }
 
 
-impl IdGenerator {
+impl <'t> IdGenerator<'t> {
+    pub fn create(config: IdGeneratorConfig) -> IdGenerator<'t> {
+        let mut holders = Vec::new();
+        for i in 0..config.get_domains_count() {
+            holders.push(DomainStateHolder::new(i, &config))
+        }
+        return IdGenerator {
+            config,
+            domain_state_holders: holders,
+        };
+    }
+
     pub fn generate_id(&self) {
         let domain: usize = 0;
         let mutex = self.domain_state_holders.get(0)
@@ -47,20 +60,12 @@ impl IdGenerator {
         state.generate_ids()
     }
 
-    pub fn create(config: &IdGeneratorConfig) -> IdGenerator {
-        let mut holders = Vec::new();
-        for i in 0..config.get_domains_count() {
-            holders.push(DomainStateHolder::new(i))
-        }
-        return IdGenerator {
-            domain_state_holders: holders,
-        };
-    }
 }
 
-impl DomainStateHolder {
-    pub fn new(domain: u64) -> Mutex<DomainStateHolder> {
+impl <'t> DomainStateHolder<'t> {
+    pub fn new(domain: u64, config: &'t IdGeneratorConfig) -> Mutex<DomainStateHolder> {
         let holder = DomainStateHolder {
+            config,
             domain,
             counter: 0,
             timestamp: 0,
@@ -88,7 +93,7 @@ mod tests {
             epoch_start: Instant::now(),
             reserved_seconds_count: 0,
         };
-        let generator = IdGenerator::create(&config);
+        let generator = IdGenerator::create(config);
         generator.generate_id();
     }
 }
