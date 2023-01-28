@@ -8,7 +8,7 @@ struct IdGeneratorConfig {
     counter_bits: u8,
     instance_id_bits: u8,
     domain_id_bits: u8,
-    epoch_start: Instant,
+    epoch_start_second: u64,
     reserved_seconds_count: u32,
 }
 
@@ -19,7 +19,8 @@ impl IdGeneratorConfig {
             + self.counter_bits as u32
             + self.instance_id_bits as u32
             + self.domain_id_bits as u32;
-        assert!(bits_count <= 63, "bits sum must be less or equal to 63")
+        assert!(bits_count <= 63, "bits sum must be less or equal to 63");
+        assert!(get_current_timestamp(&self) > 0, "epoch_start_second must be in the past");
     }
 
     pub fn get_domains_count(&self) -> u64 {
@@ -32,16 +33,9 @@ struct IdGenerator {
     domain_state_holders: Vec<Mutex<DomainStateHolder>>,
 }
 
-struct DomainStateHolder {
-    config: Arc<IdGeneratorConfig>,
-    domain: u64,
-    timestamp: u64,
-    counter: u64
-}
-
-
-impl  IdGenerator {
+impl IdGenerator {
     pub fn create(config: IdGeneratorConfig) -> IdGenerator {
+        config.validate();
         let mut holders = Vec::new();
         let domains_count = config.get_domains_count();
         let config_rc = Arc::new(config);
@@ -61,10 +55,16 @@ impl  IdGenerator {
         let state = mutex.lock().unwrap();
         state.generate_ids()
     }
-
 }
 
-impl  DomainStateHolder {
+struct DomainStateHolder {
+    config: Arc<IdGeneratorConfig>,
+    domain: u64,
+    timestamp: u64,
+    counter: u64,
+}
+
+impl DomainStateHolder {
     pub fn new(domain: u64, config: Arc<IdGeneratorConfig>) -> Mutex<DomainStateHolder> {
         let holder = DomainStateHolder {
             config,
@@ -79,7 +79,10 @@ impl  DomainStateHolder {
     }
 }
 
-fn get_current_timestamp() {}
+fn get_current_timestamp(config: &IdGeneratorConfig) -> u64 {
+    let current_unix_timestamp = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
+    return current_unix_timestamp - config.epoch_start_second;
+}
 
 #[cfg(test)]
 mod tests {
@@ -92,7 +95,7 @@ mod tests {
             counter_bits: 14,
             instance_id_bits: 6,
             domain_id_bits: 8,
-            epoch_start: Instant::now(),
+            epoch_start_second: 1672531200,
             reserved_seconds_count: 0,
         };
         let generator = IdGenerator::create(config);
