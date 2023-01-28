@@ -1,6 +1,9 @@
 use std::fmt::format;
+use std::ops::Add;
 use std::sync::{Arc, Mutex};
-use std::time::{Instant, SystemTime};
+use std::thread;
+use std::time::{Duration, Instant, SystemTime};
+use chrono::{DateTime, NaiveDate, Utc};
 use log::info;
 
 struct IdGeneratorConfig {
@@ -9,7 +12,7 @@ struct IdGeneratorConfig {
     instance_id_bits: u8,
     domain_id_bits: u8,
     epoch_start_second: u64,
-    reserved_seconds_count: u32,
+    reserved_seconds_count: u64,
 }
 
 impl IdGeneratorConfig {
@@ -25,6 +28,10 @@ impl IdGeneratorConfig {
 
     pub fn get_domains_count(&self) -> u64 {
         return 2u64.pow(self.domain_id_bits as u32) - 1;
+    }
+
+    pub fn get_max_counter_value(&self) -> u64 {
+        return 2u64.pow(self.counter_bits as u32) - 1;
     }
 }
 
@@ -48,9 +55,8 @@ impl IdGenerator {
         };
     }
 
-    pub fn generate_id(&self) {
-        let domain: usize = 0;
-        let mutex = self.domain_state_holders.get(0)
+    pub fn generate_id(&self, domain: usize) {
+        let mutex = self.domain_state_holders.get(domain)
             .expect(&format!("domain_state_holders should contain state for domain {domain}"));
         let state = mutex.lock().unwrap();
         state.generate_ids()
@@ -74,8 +80,38 @@ impl DomainStateHolder {
         };
         Mutex::new(holder)
     }
+
     pub fn generate_ids(&self) {
         info!("Generating ids...")
+    }
+
+    fn increment_counter(&mut self) {
+        let config = &*self.config;
+        let now = get_current_timestamp(&config);
+        let time_delta = now - self.timestamp;
+
+        if time_delta > config.reserved_seconds_count {
+            self.timestamp = now - config.reserved_seconds_count;
+            self.counter = 0;
+            return;
+        }
+
+        if self.counter < config.get_max_counter_value() {
+            self.counter += 1;
+            return;
+        }
+
+        if time_delta > 0 {
+            self.timestamp = self.timestamp + 1;
+            self.counter = 0;
+            return;
+        }
+
+        let now_millis = Utc::now().timestamp_millis() as u64;
+        let sleep_millis = (now + 1) * 1000 - now_millis + 1;
+        thread::sleep(Duration::from_millis(sleep_millis));
+        self.timestamp = now + 1;
+        self.counter = 0;
     }
 }
 
@@ -99,6 +135,6 @@ mod tests {
             reserved_seconds_count: 0,
         };
         let generator = IdGenerator::create(config);
-        generator.generate_id();
+        generator.generate_id(0);
     }
 }
