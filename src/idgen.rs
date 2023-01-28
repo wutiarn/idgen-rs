@@ -1,5 +1,5 @@
 use std::fmt::format;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::{Instant, SystemTime};
 use log::info;
 
@@ -27,27 +27,29 @@ impl IdGeneratorConfig {
     }
 }
 
-struct IdGenerator<'t> {
-    config: IdGeneratorConfig,
-    domain_state_holders: Vec<Mutex<DomainStateHolder<'t>>>,
+struct IdGenerator {
+    config: Arc<IdGeneratorConfig>,
+    domain_state_holders: Vec<Mutex<DomainStateHolder>>,
 }
 
-struct DomainStateHolder<'t> {
-    config: &'t IdGeneratorConfig,
+struct DomainStateHolder {
+    config: Arc<IdGeneratorConfig>,
     domain: u64,
     timestamp: u64,
     counter: u64
 }
 
 
-impl <'t> IdGenerator<'t> {
-    pub fn create(config: IdGeneratorConfig) -> IdGenerator<'t> {
+impl  IdGenerator {
+    pub fn create(config: IdGeneratorConfig) -> IdGenerator {
         let mut holders = Vec::new();
-        for i in 0..config.get_domains_count() {
-            holders.push(DomainStateHolder::new(i, &config))
+        let domains_count = config.get_domains_count();
+        let config_rc = Arc::new(config);
+        for i in 0..domains_count {
+            holders.push(DomainStateHolder::new(i, Arc::clone(&config_rc)))
         }
         return IdGenerator {
-            config,
+            config: config_rc,
             domain_state_holders: holders,
         };
     }
@@ -62,8 +64,8 @@ impl <'t> IdGenerator<'t> {
 
 }
 
-impl <'t> DomainStateHolder<'t> {
-    pub fn new(domain: u64, config: &'t IdGeneratorConfig) -> Mutex<DomainStateHolder> {
+impl  DomainStateHolder {
+    pub fn new(domain: u64, config: Arc<IdGeneratorConfig>) -> Mutex<DomainStateHolder> {
         let holder = DomainStateHolder {
             config,
             domain,
