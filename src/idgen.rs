@@ -117,7 +117,7 @@ impl DomainStateHolder {
 
     pub fn generate_ids(&mut self, count: usize, domain: usize) -> Vec<u64> {
         let mut vec: Vec<u64> = Vec::with_capacity(count);
-        let config = &*self.config;
+        let config = &*Arc::clone(&self.config);
         self.update_timestamp(config);
         for i in 0..count {
             self.increment_counter(config);
