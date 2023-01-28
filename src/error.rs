@@ -10,6 +10,7 @@ use thiserror::Error;
 pub enum HttpError {
     #[error("bad request: {0}")]
     BadRequest(String),
+    #[error("internal server error: {0}")]
     InternalServerError(String),
 }
 
