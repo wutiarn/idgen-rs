@@ -87,11 +87,11 @@ impl DomainStateHolder {
 
     fn increment_counter(&mut self) {
         let config = &*self.config;
-        let now = get_current_timestamp(&config);
-        let time_delta = now - self.timestamp;
+        let nowTimestamp = get_current_timestamp(&config);
+        let time_delta = nowTimestamp - self.timestamp;
 
         if time_delta > config.reserved_seconds_count {
-            self.timestamp = now - config.reserved_seconds_count;
+            self.timestamp = nowTimestamp - config.reserved_seconds_count;
             self.counter = 0;
             return;
         }
@@ -107,11 +107,15 @@ impl DomainStateHolder {
             return;
         }
 
-        let now_millis = Utc::now().timestamp_millis() as u64;
-        let sleep_millis = (now + 1) * 1000 - now_millis + 1;
-        thread::sleep(Duration::from_millis(sleep_millis));
-        self.timestamp = now + 1;
+        DomainStateHolder::wait_for_next_second();
+        self.timestamp = nowTimestamp + 1;
         self.counter = 0;
+    }
+
+    fn wait_for_next_second() {
+        let now = Utc::now();
+        let sleep_millis = ((now.timestamp() + 1) * 1000 - now.timestamp_millis() + 1) as u64;
+        thread::sleep(Duration::from_millis(sleep_millis));
     }
 }
 
@@ -126,7 +130,30 @@ mod tests {
 
     #[test]
     fn generate_id() {
-        let config = IdGeneratorConfig {
+        let config = build_config();
+        let generator = IdGenerator::create(config);
+        generator.generate_id(0);
+    }
+
+    #[test]
+    fn sleep_until_next_second() {
+        let config = Arc::new(build_config());
+        let start_timestamp = get_current_timestamp(&config);
+        let mut holder = DomainStateHolder {
+            config: Arc::clone(&config),
+            domain: 0,
+            timestamp: start_timestamp,
+            counter: config.get_max_counter_value(),
+        };
+
+        holder.increment_counter();
+
+        let end_timestamp = get_current_timestamp(&config);
+        assert!(end_timestamp > start_timestamp, "timestamp was not incremented");
+    }
+
+    fn build_config() -> IdGeneratorConfig {
+        return IdGeneratorConfig {
             timestamp_bits: 35,
             counter_bits: 14,
             instance_id_bits: 6,
@@ -134,7 +161,5 @@ mod tests {
             epoch_start_second: 1672531200,
             reserved_seconds_count: 0,
         };
-        let generator = IdGenerator::create(config);
-        generator.generate_id(0);
     }
 }
