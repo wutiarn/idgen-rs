@@ -1,6 +1,5 @@
 extern crate core;
 
-use std::sync::Arc;
 use actix_web::{App, HttpServer};
 use env_logger::Target;
 use log::{info, LevelFilter};

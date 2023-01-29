@@ -1,18 +1,15 @@
 use std::collections::HashSet;
-use std::sync::Arc;
-use chrono::{TimeZone, Utc};
-use serde::Serialize;
-use serde::Deserialize;
-use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
-use actix_web::http::header::ContentType;
-use actix_web::web::{Json, Query};
-use crate::dto::*;
 
+use actix_web::get;
+use actix_web::web::{Data, Json, Query};
+use chrono::{TimeZone, Utc};
+
+use crate::dto::*;
 use crate::error::HttpError;
 use crate::idgen::{IdGenerationError, IdGenerator};
 
-#[actix_web::get("/generate")]
-pub async fn generate_ids(query: Query<GenerateIdsRequest>, id_generator: web::Data<IdGenerator>) -> Result<Json<GenerateIdsResponse>, HttpError> {
+#[get("/generate")]
+pub async fn generate_ids(query: Query<GenerateIdsRequest>, id_generator: Data<IdGenerator>) -> Result<Json<GenerateIdsResponse>, HttpError> {
     let count = match query.count {
         Some(c) => c,
         None => 10
@@ -52,8 +49,8 @@ pub async fn generate_ids(query: Query<GenerateIdsRequest>, id_generator: web::D
     Ok(Json(GenerateIdsResponse { ids_by_domain }))
 }
 
-#[actix_web::get("/parse")]
-pub async fn parse_id(query: Query<ParseIdRequest>, id_generator: web::Data<IdGenerator>) -> Json<ParseIdResponse> {
+#[get("/parse")]
+pub async fn parse_id(query: Query<ParseIdRequest>, id_generator: Data<IdGenerator>) -> Json<ParseIdResponse> {
     let id_params = id_generator.decode(query.id);
     let epoch_start = id_generator.get_epoch_start();
     let timestamp = Utc.timestamp_opt((epoch_start + id_params.timestamp) as i64, 0).unwrap();

@@ -1,10 +1,7 @@
-use std::io::Cursor;
-use actix_web::http::StatusCode;
 use actix_web::{HttpResponse, ResponseError};
 use actix_web::body::BoxBody;
 use actix_web::http::header::ContentType;
-
-use log::info;
+use actix_web::http::StatusCode;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
