@@ -12,7 +12,7 @@ use crate::error::HttpError;
 use crate::idgen::{IdGenerationError, IdGenerator};
 
 #[actix_web::get("/generate")]
-pub async fn generate_ids(query: Query<GenerateIdsRequest>, id_generator: web::Data<IdGenerator>) -> Result<HttpResponse, HttpError> {
+pub async fn generate_ids(query: Query<GenerateIdsRequest>, id_generator: web::Data<IdGenerator>) -> Result<GenerateIdsResponse, HttpError> {
     let count = match query.count {
         Some(c) => c,
         None => 10
@@ -49,10 +49,7 @@ pub async fn generate_ids(query: Query<GenerateIdsRequest>, id_generator: web::D
         };
         ids_by_domain.push(IdsForDomain { domain, ids });
     }
-    let response = HttpResponse::Ok()
-        .content_type(ContentType::json())
-        .body(serde_json::to_string(&GenerateIdsResponse { ids_by_domain }).unwrap());
-    Ok(response)
+    Ok(GenerateIdsResponse { ids_by_domain })
 }
 
 #[actix_web::get("/parse")]
