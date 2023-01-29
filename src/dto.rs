@@ -34,18 +34,3 @@ pub struct ParseIdResponse {
     pub instance_id: u64,
     pub counter: u64,
 }
-
-pub trait JsonResponder: Responder {
-
-}
-
-impl Responder for GenerateIdsResponse {
-    type Body = BoxBody;
-
-    fn respond_to(self, req: &HttpRequest) -> HttpResponse<BoxBody> {
-        HttpResponse::Ok()
-            .content_type(ContentType::json())
-            .body(serde_json::to_string(&self).unwrap())
-    }
-}
-

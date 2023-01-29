@@ -5,14 +5,14 @@ use serde::Serialize;
 use serde::Deserialize;
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 use actix_web::http::header::ContentType;
-use actix_web::web::Query;
+use actix_web::web::{Json, Query};
 use crate::dto::*;
 
 use crate::error::HttpError;
 use crate::idgen::{IdGenerationError, IdGenerator};
 
 #[actix_web::get("/generate")]
-pub async fn generate_ids(query: Query<GenerateIdsRequest>, id_generator: web::Data<IdGenerator>) -> Result<GenerateIdsResponse, HttpError> {
+pub async fn generate_ids(query: Query<GenerateIdsRequest>, id_generator: web::Data<IdGenerator>) -> Result<Json<GenerateIdsResponse>, HttpError> {
     let count = match query.count {
         Some(c) => c,
         None => 10
@@ -49,25 +49,19 @@ pub async fn generate_ids(query: Query<GenerateIdsRequest>, id_generator: web::D
         };
         ids_by_domain.push(IdsForDomain { domain, ids });
     }
-    Ok(GenerateIdsResponse { ids_by_domain })
+    Ok(Json(GenerateIdsResponse { ids_by_domain }))
 }
 
 #[actix_web::get("/parse")]
-pub async fn parse_id(query: Query<ParseIdRequest>, id_generator: web::Data<IdGenerator>) -> HttpResponse {
+pub async fn parse_id(query: Query<ParseIdRequest>, id_generator: web::Data<IdGenerator>) -> Json<ParseIdResponse> {
     let id_params = id_generator.decode(query.id);
     let epoch_start = id_generator.get_epoch_start();
     let timestamp = Utc.timestamp_opt((epoch_start + id_params.timestamp) as i64, 0).unwrap();
-    return HttpResponse::Ok()
-        .content_type(ContentType::json())
-        .body(
-            serde_json::to_string(
-                &ParseIdResponse {
-                    timestamp: id_params.timestamp,
-                    decoded_timestamp: timestamp.to_rfc3339(),
-                    counter: id_params.counter,
-                    instance_id: id_params.instance_id,
-                    domain: id_params.domain,
-                }
-            ).unwrap()
-        );
+    return Json(ParseIdResponse {
+        timestamp: id_params.timestamp,
+        decoded_timestamp: timestamp.to_rfc3339(),
+        counter: id_params.counter,
+        instance_id: id_params.instance_id,
+        domain: id_params.domain,
+    });
 }

@@ -17,7 +17,7 @@ mod dto;
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     env_logger::builder()
-        .filter_level(LevelFilter::Debug)
+        .filter_level(LevelFilter::Info)
         .target(Target::Stdout)
         .init();
 
