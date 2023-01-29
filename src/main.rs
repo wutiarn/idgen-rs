@@ -12,6 +12,7 @@ mod http;
 mod error;
 mod idgen;
 mod config;
+mod dto;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {

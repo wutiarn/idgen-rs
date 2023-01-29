@@ -6,6 +6,7 @@ use serde::Deserialize;
 use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
 use actix_web::http::header::ContentType;
 use actix_web::web::Query;
+use crate::dto::*;
 
 use crate::error::HttpError;
 use crate::idgen::{IdGenerationError, IdGenerator};
@@ -72,35 +73,4 @@ pub async fn parse_id(query: Query<ParseIdRequest>, id_generator: web::Data<IdGe
                 }
             ).unwrap()
         );
-}
-
-#[derive(Deserialize, Debug)]
-pub struct GenerateIdsRequest {
-    pub count: Option<u32>,
-    pub domains: Option<String>,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct ParseIdRequest {
-    pub id: u64,
-}
-
-#[derive(Serialize, Debug)]
-pub struct GenerateIdsResponse {
-    pub ids_by_domain: Vec<IdsForDomain>,
-}
-
-#[derive(Serialize, Debug)]
-pub struct IdsForDomain {
-    pub domain: u64,
-    pub ids: Vec<u64>,
-}
-
-#[derive(Serialize, Debug)]
-pub struct ParseIdResponse {
-    domain: u64,
-    timestamp: u64,
-    decoded_timestamp: String,
-    instance_id: u64,
-    counter: u64,
 }
