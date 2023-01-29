@@ -14,7 +14,7 @@ mod idgen;
 mod config;
 
 #[actix_web::main]
-async fn main() {
+async fn main() -> std::io::Result<()> {
     env_logger::builder()
         .filter_level(LevelFilter::Debug)
         .target(Target::Stdout)
@@ -30,9 +30,7 @@ async fn main() {
             .service(http::generate_ids)
             .service(http::parse_id)
     })
-        .bind(("0.0.0.0", 8080))
-        .unwrap()
+        .bind(("0.0.0.0", 8080))?
         .run()
         .await
-        .unwrap();
 }
