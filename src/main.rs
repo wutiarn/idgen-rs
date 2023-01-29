@@ -1,5 +1,6 @@
 extern crate core;
 
+use std::sync::Arc;
 use actix_web::{App, HttpServer};
 use env_logger::Target;
 use log::{info, LevelFilter};
@@ -19,12 +20,13 @@ async fn main() {
         .target(Target::Stdout)
         .init();
 
+    let config = AppConfig::new().unwrap();
+    let id_generator = Arc::new(IdGenerator::create(&config.idgen));
+
     info!("Starting idgen-rs");
-    HttpServer::new(|| {
-        let config = AppConfig::new().unwrap();
-        let id_generator = IdGenerator::create(&config.idgen);
+    HttpServer::new(move || {
         App::new()
-            .app_data(actix_web::web::Data::new(id_generator))
+            .app_data(actix_web::web::Data::new(Arc::clone(&id_generator)))
             .service(http::generate_ids)
             .service(http::parse_id)
     })
