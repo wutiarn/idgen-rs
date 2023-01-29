@@ -1,5 +1,6 @@
 extern crate core;
 
+use actix_web::{App, HttpServer};
 use env_logger::Target;
 use log::{info, LevelFilter};
 use rocket;
@@ -13,7 +14,7 @@ mod error;
 mod idgen;
 mod config;
 
-#[rocket::main]
+#[actix_web::main]
 async fn main() {
     env_logger::builder()
         .filter_level(LevelFilter::Debug)
@@ -24,9 +25,13 @@ async fn main() {
     let id_generator = IdGenerator::create(&config.idgen);
 
     info!("Starting idgen-rs");
-    let _ = rocket::build()
-        .mount("/", routes![http::generate_ids, http::parse_id])
-        .manage(config)
-        .manage(id_generator)
-        .launch().await;
+    HttpServer::new(|| {
+        App::new()
+            .app_data(actix_web::web::Data::new(id_generator))
+    })
+        .bind(("0.0.0.0", 8080))
+        .unwrap()
+        .run()
+        .await
+        .unwrap();
 }

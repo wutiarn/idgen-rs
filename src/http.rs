@@ -1,16 +1,17 @@
 use std::collections::HashSet;
 use chrono::{TimeZone, Utc};
-use rocket;
-use rocket::serde::json::Json;
-use rocket::State;
 use serde::Serialize;
+use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder};
+use actix_web::http::header::ContentType;
+use actix_web::web::Query;
 
 use crate::error::HttpError;
 use crate::idgen::{IdGenerationError, IdGenerator};
 
-#[rocket::get("/generate?<count>&<domains>")]
-pub fn generate_ids(count: Option<u32>, domains: Option<&str>, id_generator: &State<IdGenerator>) -> Result<Json<GenerateIdsResponse>, HttpError> {
-    let count = match count {
+#[actix_web::get("/generate")]
+pub fn generate_ids(query: Query<GenerateIdsRequest>, id_generator: &web::Data<IdGenerator>) -> actix_web::Result<HttpResponse, HttpError> {
+
+    let count = match query.count {
         Some(c) => c,
         None => 10
     };
@@ -18,7 +19,7 @@ pub fn generate_ids(count: Option<u32>, domains: Option<&str>, id_generator: &St
         return Err(HttpError::BadRequest("count must be greater than 0".into()));
     }
 
-    let domains: Vec<u64> = match domains {
+    let domains: Vec<u64> = match query.domains {
         Some(domains_str) => {
             let domain_strs = domains_str.split(",");
             let mut domain_set = HashSet::with_capacity((id_generator.get_max_domain() + 1) as usize);
@@ -46,23 +47,33 @@ pub fn generate_ids(count: Option<u32>, domains: Option<&str>, id_generator: &St
         };
         ids_by_domain.push(IdsForDomain { domain, ids });
     }
-    Ok(Json(GenerateIdsResponse { ids_by_domain }))
+    let response = HttpResponse::Ok()
+        .content_type(ContentType::json())
+        .body(GenerateIdsResponse { ids_by_domain });
+    OK(response)
 }
 
-#[rocket::get("/parse?<id>")]
-pub fn parse_id(id: u64, id_generator: &State<IdGenerator>) -> Json<ParseIdResponse> {
+#[actix_web::get("/parse?<id>")]
+pub fn parse_id(id: u64, id_generator: &web::Data<IdGenerator>) -> HttpResponse {
     let id_params = id_generator.decode(id);
     let epoch_start = id_generator.get_epoch_start();
     let timestamp = Utc.timestamp_opt((epoch_start + id_params.timestamp) as i64, 0).unwrap();
-    return Json(
-        ParseIdResponse {
-            timestamp: id_params.timestamp,
-            decoded_timestamp: timestamp.to_rfc3339(),
-            counter: id_params.counter,
-            instance_id: id_params.instance_id,
-            domain: id_params.domain,
-        }
-    );
+    return HttpResponse::Ok()
+        .content_type(ContentType::json())
+        .body(
+            ParseIdResponse {
+                timestamp: id_params.timestamp,
+                decoded_timestamp: timestamp.to_rfc3339(),
+                counter: id_params.counter,
+                instance_id: id_params.instance_id,
+                domain: id_params.domain,
+            }
+        );
+}
+
+pub struct GenerateIdsRequest<'t> {
+    pub count: Option<u32>,
+    pub domains: Option<&'t str>
 }
 
 #[derive(Serialize, Debug)]
