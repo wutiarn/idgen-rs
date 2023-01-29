@@ -7,9 +7,7 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum HttpError {
     #[error("bad request: {0}")]
-    BadRequest(String),
-    #[error("internal server error: {0}")]
-    InternalServerError(String),
+    BadRequest(String)
 }
 
 impl HttpError {
@@ -17,9 +15,6 @@ impl HttpError {
         return match self {
             HttpError::BadRequest(_) => {
                 StatusCode::BAD_REQUEST
-            }
-            _other => {
-                StatusCode::INTERNAL_SERVER_ERROR
             }
         };
     }
