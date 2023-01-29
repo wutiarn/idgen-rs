@@ -54,7 +54,7 @@ pub async fn generate_ids(query: Query<GenerateIdsRequest>, id_generator: web::D
 }
 
 #[actix_web::get("/parse")]
-async fn parse_id(query: Query<ParseIdRequest>, id_generator: web::Data<IdGenerator>) -> HttpResponse {
+pub async fn parse_id(query: Query<ParseIdRequest>, id_generator: web::Data<IdGenerator>) -> HttpResponse {
     let id_params = id_generator.decode(query.id);
     let epoch_start = id_generator.get_epoch_start();
     let timestamp = Utc.timestamp_opt((epoch_start + id_params.timestamp) as i64, 0).unwrap();

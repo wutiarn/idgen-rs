@@ -25,6 +25,8 @@ async fn main() {
         let id_generator = IdGenerator::create(&config.idgen);
         App::new()
             .app_data(actix_web::web::Data::new(id_generator))
+            .service(http::generate_ids)
+            .service(http::parse_id)
     })
         .bind(("0.0.0.0", 8080))
         .unwrap()
