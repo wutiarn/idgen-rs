@@ -21,12 +21,12 @@ async fn main() {
         .init();
 
     let config = AppConfig::new().unwrap();
-    let id_generator = Arc::new(IdGenerator::create(&config.idgen));
+    let id_generator = actix_web::web::Data::new(IdGenerator::create(&config.idgen));
 
     info!("Starting idgen-rs");
     HttpServer::new(move || {
         App::new()
-            .app_data(actix_web::web::Data::new(Arc::clone(&id_generator)))
+            .app_data(id_generator.clone())
             .service(http::generate_ids)
             .service(http::parse_id)
     })
