@@ -3,8 +3,6 @@ extern crate core;
 use actix_web::{App, HttpServer};
 use env_logger::Target;
 use log::{info, LevelFilter};
-use rocket;
-use rocket::routes;
 
 use crate::config::AppConfig;
 use crate::idgen::IdGenerator;
@@ -21,11 +19,10 @@ async fn main() {
         .target(Target::Stdout)
         .init();
 
-    let config = AppConfig::new().unwrap();
-    let id_generator = IdGenerator::create(&config.idgen);
-
     info!("Starting idgen-rs");
     HttpServer::new(|| {
+        let config = AppConfig::new().unwrap();
+        let id_generator = IdGenerator::create(&config.idgen);
         App::new()
             .app_data(actix_web::web::Data::new(id_generator))
     })

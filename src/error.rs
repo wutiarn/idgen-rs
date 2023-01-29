@@ -5,9 +5,6 @@ use actix_web::body::BoxBody;
 use actix_web::http::header::ContentType;
 
 use log::info;
-use rocket::{Request, Response};
-use rocket::http::{Header, Status};
-use rocket::response::Responder;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
