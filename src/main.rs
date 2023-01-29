@@ -1,9 +1,8 @@
 extern crate core;
 
+use actix_web::{App, HttpServer};
 use env_logger::Target;
 use log::{info, LevelFilter};
-use rocket;
-use rocket::routes;
 
 use crate::config::AppConfig;
 use crate::idgen::IdGenerator;
@@ -12,21 +11,26 @@ mod http;
 mod error;
 mod idgen;
 mod config;
+mod dto;
 
-#[rocket::main]
-async fn main() {
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
     env_logger::builder()
-        .filter_level(LevelFilter::Debug)
+        .filter_level(LevelFilter::Info)
         .target(Target::Stdout)
         .init();
 
     let config = AppConfig::new().unwrap();
-    let id_generator = IdGenerator::create(&config.idgen);
+    let id_generator = actix_web::web::Data::new(IdGenerator::create(&config.idgen));
 
     info!("Starting idgen-rs");
-    let _ = rocket::build()
-        .mount("/", routes![http::generate_ids, http::parse_id])
-        .manage(config)
-        .manage(id_generator)
-        .launch().await;
+    HttpServer::new(move || {
+        App::new()
+            .app_data(id_generator.clone())
+            .service(http::generate_ids)
+            .service(http::parse_id)
+    })
+        .bind(("0.0.0.0", 8080))?
+        .run()
+        .await
 }

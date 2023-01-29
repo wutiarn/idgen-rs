@@ -1,8 +1,8 @@
-use std::thread;
 use std::sync::{Arc, Mutex};
+use std::thread;
 use std::time::{Duration, SystemTime};
-use chrono::Utc;
 
+use chrono::Utc;
 use log::{debug, warn};
 use thiserror::Error;
 
